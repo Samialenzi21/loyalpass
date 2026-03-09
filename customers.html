@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قائمة العملاء - LoyalPass</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .back-btn {
+            background: #764ba2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .customers-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .customers-container h1 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .search-bar {
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        .customer-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .customer-table th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: right;
+        }
+        .customer-table td {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        .customer-table tr:hover {
+            background: #f8f9fa;
+        }
+        .points-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .reward-badge {
+            background: #28a745;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+        }
+        .no-customers {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-box h3 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        .stat-box p {
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">LoyalPass</div>
+            <a href="dashboard.html" class="back-btn">العودة</a>
+        </div>
+
+        <div class="customers-container">
+            <h1>قائمة العملاء</h1>
+            
+            <div class="stats-row">
+                <div class="stat-box">
+                    <h3 id="totalCustomers">0</h3>
+                    <p>إجمالي العملاء</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="activeCustomers">0</h3>
+                    <p>عملاء نشطين</p>
+                </div>
+                <div class="stat-box">
+                    <h3 id="totalPoints">0</h3>
+                    <p>إجمالي النقاط</p>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="بحث عن عميل...">
+            </div>
+
+            <table class="customer-table" id="customersTable">
+                <thead>
+                    <tr>
+                        <th>الاسم</th>
+                        <th>رقم الهاتف</th>
+                        <th>النقاط</th>
+                        <th>المكافآت</th>
+                        <th>آخر زيارة</th>
+                    </tr>
+                </thead>
+                <tbody id="customersBody">
+                    <tr>
+                        <td colspan="5" class="no-customers">جاري التحميل...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase, getCurrentUser } from './src/supabase.js';
+
+        let allCustomers = [];
+        let currentShop = null;
+
+        async function init() {
+            const user = await getCurrentUser();
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const { data: shop } = await supabase
+                .from('shops')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            currentShop = shop;
+            await loadCustomers();
+        }
+
+        async function loadCustomers() {
+            const { data: customers, error } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('shop_id', currentShop.id)
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('Error loading customers:', error);
+                return;
+            }
+
+            allCustomers = customers || [];
+            updateStats();
+            displayCustomers(allCustomers);
+        }
+
+        function updateStats() {
+            document.getElementById('totalCustomers').textContent = allCustomers.length;
+            const activeCustomers = allCustomers.filter(c => c.points > 0).length;
+            document.getElementById('activeCustomers').textContent = activeCustomers;
+            const totalPoints = allCustomers.reduce((sum, c) => sum + (c.points || 0), 0);
+            document.getElementById('totalPoints').textContent = totalPoints;
+        }
+
+        function displayCustomers(customers) {
+            const tbody = document.getElementById('customersBody');
+            
+            if (customers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="no-customers">لا يوجد عملاء حالياً</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = customers.map(customer => `
+                <tr>
+                    <td>${customer.name || 'غير محدد'}</td>
+                    <td>${customer.phone || '-'}</td>
+                    <td><span class="points-badge">${customer.points || 0}</span></td>
+                    <td><span class="reward-badge">${customer.rewards_earned || 0} مكافأة</span></td>
+                    <td>${formatDate(customer.last_visit || customer.created_at)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ar-SA');
+        }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = allCustomers.filter(customer => 
+                (customer.name || '').toLowerCase().includes(searchTerm) ||
+                (customer.phone || '').includes(searchTerm)
+            );
+            displayCustomers(filtered);
+        });
+
+        init();
+    </script>
+</body>
+</html>
