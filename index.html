@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LoyalPass - نظام بطاقات الولاء</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+<style>*{font-family:'Cairo',sans-serif}.grad{background:linear-gradient(135deg,#1a0533,#0f0f1a,#0d1b2a)}</style>
+</head>
+<body class="grad min-h-screen text-white">
+<nav class="flex justify-between items-center px-8 py-5 max-w-6xl mx-auto">
+  <div class="text-2xl font-black text-purple-400">LoyalPass</div>
+  <div class="flex gap-3">
+    <button onclick="showModal('login')" class="px-5 py-2 rounded-lg border border-purple-500 hover:bg-purple-500/20">دخول</button>
+    <button onclick="showModal('register')" class="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 font-bold">ابدأ الآن</button>
+  </div>
+</nav>
+<section class="max-w-4xl mx-auto px-8 py-24 text-center">
+  <h1 class="text-6xl font-black mb-6">بطاقات ولاء <span class="text-purple-400">رقمية</span><br/>لمحلك</h1>
+  <p class="text-gray-300 text-xl mb-10">أنشئ بطاقة ولاء تُضاف لـ Google Wallet و Apple Wallet في دقائق</p>
+  <button onclick="showModal('register')" class="px-10 py-4 bg-purple-600 hover:bg-purple-700 rounded-xl font-bold text-xl">ابدأ مجاناً ←</button>
+  <div class="flex justify-center gap-12 mt-16">
+    <div><div class="text-4xl font-black text-purple-400">500+</div><div class="text-gray-400">تاجر</div></div>
+    <div><div class="text-4xl font-black text-purple-400">50K+</div><div class="text-gray-400">بطاقة</div></div>
+    <div><div class="text-4xl font-black text-purple-400">$100</div><div class="text-gray-400">شهرياً</div></div>
+  </div>
+</section>
+<!-- Login Modal -->
+<div id="loginModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-900 border border-purple-500/30 rounded-2xl p-8 w-full max-w-md relative">
+    <h2 class="text-2xl font-black mb-6 text-center">تسجيل الدخول</h2>
+    <div id="loginErr" class="hidden bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-sm"></div>
+    <input id="lEmail" type="email" placeholder="البريد الإلكتروني" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 mb-4 outline-none focus:border-purple-500 text-right"/>
+    <input id="lPass" type="password" placeholder="كلمة المرور" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 mb-6 outline-none focus:border-purple-500 text-right"/>
+    <button onclick="doLogin()" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl font-bold text-lg">دخول</button>
+    <p class="text-center text-gray-400 mt-4 text-sm">ليس لديك حساب؟ <span onclick="showModal('register')" class="text-purple-400 cursor-pointer">سجّل الآن</span></p>
+    <button onclick="closeModals()" class="absolute top-4 left-4 text-gray-500 hover:text-white text-2xl">x</button>
+  </div>
+</div>
+<!-- Register Modal -->
+<div id="registerModal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+  <div class="bg-gray-900 border border-purple-500/30 rounded-2xl p-8 w-full max-w-md relative">
+    <h2 class="text-2xl font-black mb-6 text-center">إنشاء حساب</h2>
+    <div id="regErr" class="hidden bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-sm"></div>
+    <input id="rBusiness" type="text" placeholder="اسم المحل" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 mb-4 outline-none focus:border-purple-500 text-right"/>
+    <input id="rEmail" type="email" placeholder="البريد الإلكتروني" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 mb-4 outline-none focus:border-purple-500 text-right"/>
+    <input id="rPass" type="password" placeholder="كلمة المرور" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 mb-6 outline-none focus:border-purple-500 text-right"/>
+    <button onclick="doRegister()" class="w-full bg-purple-600 hover:bg-purple-700 py-3 rounded-xl font-bold text-lg">إنشاء الحساب</button>
+    <button onclick="closeModals()" class="absolute top-4 left-4 text-gray-500 hover:text-white text-2xl">x</button>
+  </div>
+</div>
+<script type="module">
+import { supabase } from './src/supabase.js'
+window.showModal = (t) => { document.getElementById('loginModal').classList[t==='login'?'remove':'add']('hidden'); document.getElementById('registerModal').classList[t==='register'?'remove':'add']('hidden') }
+window.closeModals = () => { document.getElementById('loginModal').classList.add('hidden'); document.getElementById('registerModal').classList.add('hidden') }
+window.doLogin = async () => {
+  const e = document.getElementById('loginErr')
+  e.classList.add('hidden')
+  const { error } = await supabase.auth.signInWithPassword({ email: document.getElementById('lEmail').value, password: document.getElementById('lPass').value })
+  if (error) { e.textContent = error.message; e.classList.remove('hidden') }
+  else window.location.href = '/dashboard.html'
+}
+window.doRegister = async () => {
+  const e = document.getElementById('regErr')
+  e.classList.add('hidden')
+  const business = document.getElementById('rBusiness').value
+  const email = document.getElementById('rEmail').value
+  const password = document.getElementById('rPass').value
+  if (!business || !email || !password) { e.textContent = 'يرجى تعبئة جميع الحقول'; e.classList.remove('hidden'); return }
+  const { data, error } = await supabase.auth.signUp({ email, password })
+  if (error) { e.textContent = error.message; e.classList.remove('hidden'); return }
+  await supabase.from('merchants').insert({ user_id: data.user.id, business_name: business, card_color: '#6C47FF', points_label: 'قهوة', reward_threshold: 10 })
+  window.location.href = '/dashboard.html'
+}
+</script>
+</body>
+</html>
