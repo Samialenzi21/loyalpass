@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مسح باركود - LoyalPass</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .back-btn {
+            background: #764ba2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .scan-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .scan-container h1 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+        #video {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin: 20px 0;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            text-align: center;
+        }
+        .scan-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .scan-btn:hover {
+            transform: scale(1.05);
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        .customer-info {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .points-display {
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">LoyalPass</div>
+            <a href="dashboard.html" class="back-btn">العودة</a>
+        </div>
+
+        <div class="scan-container">
+            <h1>مسح بطاقة العميل</h1>
+            
+            <video id="video" autoplay></video>
+            
+            <div class="input-group">
+                <input type="text" id="customerCode" placeholder="أو أدخل رقم العميل">
+            </div>
+
+            <button class="scan-btn" onclick="startCamera()">تشغيل الكاميرا</button>
+            <button class="scan-btn" onclick="addPoint()">إضافة نقطة</button>
+
+            <div id="customerInfo" class="customer-info" style="display: none;">
+                <h3 id="customerName"></h3>
+                <div class="points-display" id="customerPoints">0</div>
+                <p>نقطة حتى الآن</p>
+            </div>
+
+            <div id="result" class="result"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase, getCurrentUser } from './src/supabase.js';
+        import { scanQRCode, addPointToCustomer } from './src/scan.js';
+
+        let currentShop = null;
+        let stream = null;
+
+        async function init() {
+            const user = await getCurrentUser();
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const { data: shop } = await supabase
+                .from('shops')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            currentShop = shop;
+        }
+
+        window.startCamera = async function() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                showResult('تم تشغيل الكاميرا', 'success');
+            } catch (err) {
+                showResult('خطأ في فتح الكاميرا', 'error');
+            }
+        }
+
+        window.addPoint = async function() {
+            const customerCode = document.getElementById('customerCode').value;
+            if (!customerCode) {
+                showResult('يرجى إدخال رقم العميل', 'error');
+                return;
+            }
+
+            try {
+                const result = await addPointToCustomer(currentShop.id, customerCode);
+                
+                if (result.success) {
+                    document.getElementById('customerName').textContent = result.customer.name || 'عميل';
+                    document.getElementById('customerPoints').textContent = result.customer.points;
+                    document.getElementById('customerInfo').style.display = 'block';
+                    
+                    if (result.rewardEarned) {
+                        showResult('تهانينا! حصل العميل على مكافأة مجانية!', 'success');
+                    } else {
+                        showResult('تمت إضافة نقطة بنجاح', 'success');
+                    }
+                    
+                    document.getElementById('customerCode').value = '';
+                } else {
+                    showResult('خطأ: ' + result.error, 'error');
+                }
+            } catch (err) {
+                showResult('حدث خطأ غير متوقع', 'error');
+            }
+        }
+
+        function showResult(message, type) {
+            const result = document.getElementById('result');
+            result.textContent = message;
+            result.className = 'result ' + type;
+            setTimeout(() => {
+                result.style.display = 'none';
+            }, 5000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
