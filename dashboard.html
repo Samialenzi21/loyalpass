@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - LoyalPass</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .logout-btn {
+            background: #764ba2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .stat-card .number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .card-preview {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .card-preview h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .loyalty-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .card-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .qr-placeholder {
+            background: white;
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #667eea;
+        }
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .action-btn {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            text-decoration: none;
+            color: #333;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .action-btn:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">LoyalPass</div>
+            <div class="user-info">
+                <span id="shopName">جاري التحميل...</span>
+                <button class="logout-btn" onclick="logout()">تسجيل خروج</button>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>إجمالي العملاء</h3>
+                <div class="number" id="totalCustomers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>عمليات المسح اليوم</h3>
+                <div class="number" id="todayScans">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>المكافآت الموزعة</h3>
+                <div class="number" id="rewardsGiven">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>نقاط نشطة</h3>
+                <div class="number" id="activePoints">0</div>
+            </div>
+        </div>
+
+        <div class="card-preview">
+            <h2>بطاقة الولاء الخاصة بك</h2>
+            <div class="loyalty-card">
+                <div class="card-title" id="cardShopName">اسم المحل</div>
+                <div class="qr-placeholder" id="qrCode">QR Code</div>
+                <p style="text-align: center;">امسح للحصول على نقاط الولاء</p>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <a href="scan.html" class="action-btn">
+                <h3>مسح باركود</h3>
+                <p>امنح النقاط للعملاء</p>
+            </a>
+            <a href="customers.html" class="action-btn">
+                <h3>العملاء</h3>
+                <p>عرض قائمة العملاء</p>
+            </a>
+            <a href="#" class="action-btn" onclick="downloadCard()">
+                <h3>تحميل البطاقة</h3>
+                <p>حفظ بطاقة الولاء</p>
+            </a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase, getCurrentUser } from './src/supabase.js';
+        import { getShopStats } from './src/stats.js';
+
+        async function loadDashboard() {
+            const user = await getCurrentUser();
+            if (!user) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Load shop info
+            const { data: shop } = await supabase
+                .from('shops')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
+            if (shop) {
+                document.getElementById('shopName').textContent = shop.name;
+                document.getElementById('cardShopName').textContent = shop.name;
+                
+                // Generate QR code (placeholder)
+                const qrCode = document.getElementById('qrCode');
+                qrCode.innerHTML = `<canvas id="qrCanvas"></canvas>`;
+            }
+
+            // Load stats
+            const stats = await getShopStats(user.id);
+            document.getElementById('totalCustomers').textContent = stats.totalCustomers;
+            document.getElementById('todayScans').textContent = stats.todayScans;
+            document.getElementById('rewardsGiven').textContent = stats.rewardsGiven;
+            document.getElementById('activePoints').textContent = stats.activePoints;
+        }
+
+        window.logout = async function() {
+            await supabase.auth.signOut();
+            window.location.href = 'index.html';
+        }
+
+        window.downloadCard = function() {
+            alert('ميزة التحميل قريباً');
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
